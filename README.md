@@ -1,3 +1,4 @@
+
 # AI Agent with Long-Term Memory
 
 An AI chatbot built with Python, Mem0, Qdrant, and OpenRouter. The project can remember user information, retrieve relevant memories, and update preferences during future conversations.
@@ -133,3 +134,6 @@ To stop the chatbot, type:
 ## Author
 
 Wasid Khan
+=======
+# SELF-LEARNING-AI-AGENT
+
