@@ -132,9 +132,8 @@ To stop the chatbot, type:
 - Add voice input and output
 
 ## Author
-
 Wasid Khan
-=======
+
 # SELF-LEARNING-AI-AGENT
 
 ## Demo
@@ -154,6 +153,7 @@ Relevant memories:
 
 AI: Your name is Wasid.
 Memory updated successfully.
+```
 
 
 ## Future Improvements
