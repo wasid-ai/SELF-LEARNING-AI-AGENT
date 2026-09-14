@@ -137,3 +137,38 @@ Wasid Khan
 =======
 # SELF-LEARNING-AI-AGENT
 
+## Demo
+
+The AI agent can retrieve previously stored memories and use them to answer user questions.
+
+Example:
+
+```text
+Long-Term Memory AI Agent
+Type 'exit' to stop.
+
+You: What is my name?
+
+Relevant memories:
+- User's name is Wasid.
+
+AI: Your name is Wasid.
+Memory updated successfully.
+
+
+## Future Improvements
+
+- **Advanced Memory Management:** Improve memory updating, editing, deletion, and conflict-resolution logic.
+- **User-Specific Memory:** Add support for multiple users with separate and secure memory storage.
+- **Better Memory Retrieval:** Improve semantic search, keyword search, ranking, and relevance filtering.
+- **Conversation History:** Store and retrieve complete conversation history for more contextual responses.
+- **Web Interface:** Build an interactive web interface using Streamlit.
+- **Voice Interaction:** Add speech-to-text and text-to-speech capabilities for voice-based conversations.
+- **Tool Integration:** Allow the AI agent to use external tools such as calculators, web search, and file analysis.
+- **Document Memory:** Enable the agent to read, store, and retrieve information from PDFs, notes, and documents.
+- **Authentication and Security:** Add user authentication, secure API-key handling, and privacy controls.
+- **Monitoring and Evaluation:** Add logging, response-quality evaluation, latency tracking, and memory-retrieval metrics.
+- **Cloud Deployment:** Deploy the AI agent on a cloud platform for online access.
+- **Automated Testing:** Add unit tests and integration tests to improve reliability and maintainability.
+
+
