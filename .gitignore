@@ -6,3 +6,6 @@ qdrant_data/
 .pytest_cache/
 .vscode/
 .idea/
+.chatbot_advanced_backup.py
+.chatbot_backup.py
+.qdrant_data_backup/
