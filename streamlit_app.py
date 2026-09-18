@@ -9,19 +9,6 @@ from ddgs import DDGS
 
 
 # =========================
-# LOAD ENVIRONMENT
-# =========================
-
-load_dotenv()
-
-api_key = os.getenv("OPENROUTER_API_KEY")
-
-if not api_key:
-    st.error("OPENROUTER_API_KEY nahi mila. .env file check karo.")
-    st.stop()
-
-
-# =========================
 # PAGE CONFIG
 # =========================
 
@@ -30,6 +17,28 @@ st.set_page_config(
     page_icon="🤖",
     layout="centered"
 )
+
+
+# =========================
+# LOAD ENVIRONMENT / SECRETS
+# =========================
+
+load_dotenv()
+
+api_key = os.getenv("OPENROUTER_API_KEY")
+
+if not api_key:
+    try:
+        api_key = st.secrets["OPENROUTER_API_KEY"]
+    except Exception:
+        api_key = None
+
+if not api_key:
+    st.error(
+        "OPENROUTER_API_KEY nahi mila. "
+        "Streamlit Cloud Secrets check karo."
+    )
+    st.stop()
 
 
 # =========================
@@ -92,7 +101,9 @@ def web_search(query, max_results=5):
 
     except Exception as e:
 
-        st.warning(f"Web search failed: {e}")
+        st.warning(
+            f"Web search failed: {e}"
+        )
 
         return []
 
@@ -185,6 +196,7 @@ st.caption(
 # =========================
 
 if "messages" not in st.session_state:
+
     st.session_state.messages = []
 
 
@@ -195,7 +207,10 @@ if "messages" not in st.session_state:
 for message in st.session_state.messages:
 
     with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+
+        st.markdown(
+            message["content"]
+        )
 
 
 # =========================
@@ -209,9 +224,9 @@ user_message = st.chat_input(
 
 if user_message:
 
-    # -------------------------
-    # Display user message
-    # -------------------------
+    # =========================
+    # DISPLAY USER MESSAGE
+    # =========================
 
     st.session_state.messages.append(
         {
@@ -221,6 +236,7 @@ if user_message:
     )
 
     with st.chat_message("user"):
+
         st.markdown(user_message)
 
 
@@ -290,7 +306,9 @@ if user_message:
 
     if needs_web_search(user_message):
 
-        with st.spinner("🌐 Searching the web..."):
+        with st.spinner(
+            "🌐 Searching the web..."
+        ):
 
             search_results = web_search(
                 user_message,
@@ -395,7 +413,9 @@ When using web information, mention the source links at the end when appropriate
 
     with st.chat_message("assistant"):
 
-        with st.spinner("🤖 Thinking..."):
+        with st.spinner(
+            "🤖 Thinking..."
+        ):
 
             try:
 
@@ -404,7 +424,10 @@ When using web information, mention the source links at the end when appropriate
                     messages=messages
                 )
 
-                answer = response.choices[0].message.content
+                answer = (
+                    response.choices[0]
+                    .message.content
+                )
 
             except Exception as e:
 
@@ -422,7 +445,9 @@ When using web information, mention the source links at the end when appropriate
 
     if search_results:
 
-        st.markdown("### 🌐 Web Sources")
+        st.markdown(
+            "### 🌐 Web Sources"
+        )
 
         for result in search_results:
 
@@ -474,18 +499,22 @@ When using web information, mention the source links at the end when appropriate
 
 
 # =========================
-# SIDEBAR
+# SIDEBAR INFORMATION
 # =========================
 
 st.sidebar.divider()
 
-st.sidebar.subheader("🧠 Long-Term Memory")
+st.sidebar.subheader(
+    "🧠 Long-Term Memory"
+)
 
 st.sidebar.write(
     "Each User ID has a separate memory space."
 )
 
-st.sidebar.subheader("🌐 Web Search")
+st.sidebar.subheader(
+    "🌐 Web Search"
+)
 
 st.sidebar.write(
     "Current information is searched "
