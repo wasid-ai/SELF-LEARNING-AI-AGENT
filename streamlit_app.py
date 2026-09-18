@@ -5,6 +5,7 @@ import streamlit as st
 from dotenv import load_dotenv
 from mem0 import Memory
 from openai import OpenAI
+from ddgs import DDGS
 
 
 # =========================
@@ -55,7 +56,7 @@ memory_config = {
 
 
 # =========================
-# LOAD SERVICES ONCE
+# LOAD SERVICES
 # =========================
 
 @st.cache_resource
@@ -75,6 +76,68 @@ memory, client = load_services()
 
 
 # =========================
+# WEB SEARCH FUNCTION
+# =========================
+
+def web_search(query, max_results=5):
+
+    try:
+
+        results = DDGS().text(
+            query,
+            max_results=max_results
+        )
+
+        return results
+
+    except Exception as e:
+
+        st.warning(f"Web search failed: {e}")
+
+        return []
+
+
+# =========================
+# SEARCH DECISION
+# =========================
+
+def needs_web_search(query):
+
+    query_lower = query.lower()
+
+    current_keywords = [
+        "latest",
+        "today",
+        "current",
+        "now",
+        "recent",
+        "news",
+        "this week",
+        "this month",
+        "2026",
+        "price",
+        "prices",
+        "weather",
+        "score",
+        "result",
+        "results",
+        "new",
+        "recently",
+        "bigg boss",
+        "election",
+        "stock",
+        "market"
+    ]
+
+    for keyword in current_keywords:
+
+        if keyword in query_lower:
+            return True
+
+    return False
+
+
+# =========================
 # USER ID
 # =========================
 
@@ -86,9 +149,11 @@ user_id_input = st.sidebar.text_input(
     help="Each User ID has separate long-term memories."
 )
 
-
-# Clean User ID
-user_id = re.sub(r"[^a-zA-Z0-9_-]", "_", user_id_input.strip())
+user_id = re.sub(
+    r"[^a-zA-Z0-9_-]",
+    "_",
+    user_id_input.strip()
+)
 
 if not user_id:
     user_id = "wasid"
@@ -107,12 +172,11 @@ st.title("🤖 Self Learning AI Agent")
 
 st.write(
     "A general-purpose AI chatbot enhanced with "
-    "long-term memory using Mem0 and Qdrant."
+    "long-term memory and free web search."
 )
 
-
 st.caption(
-    "Memory is isolated using User ID."
+    "Mem0 + Qdrant + OpenRouter + Free Web Search"
 )
 
 
@@ -125,7 +189,7 @@ if "messages" not in st.session_state:
 
 
 # =========================
-# DISPLAY CHAT HISTORY
+# DISPLAY CHAT
 # =========================
 
 for message in st.session_state.messages:
@@ -139,7 +203,7 @@ for message in st.session_state.messages:
 # =========================
 
 user_message = st.chat_input(
-    "Type your message..."
+    "Ask anything..."
 )
 
 
@@ -160,9 +224,9 @@ if user_message:
         st.markdown(user_message)
 
 
-    # -------------------------
-    # Search long-term memory
-    # -------------------------
+    # =========================
+    # MEMORY SEARCH
+    # =========================
 
     try:
 
@@ -187,9 +251,9 @@ if user_message:
         )
 
 
-    # -------------------------
-    # Prepare memory context
-    # -------------------------
+    # =========================
+    # MEMORY CONTEXT
+    # =========================
 
     memory_context = ""
 
@@ -205,6 +269,7 @@ if user_message:
             )
 
             if memory_text:
+
                 memory_lines.append(
                     f"- {memory_text}"
                 )
@@ -217,22 +282,84 @@ if user_message:
             )
 
 
-    # -------------------------
-    # AI SYSTEM PROMPT
-    # -------------------------
+    # =========================
+    # WEB SEARCH
+    # =========================
+
+    search_results = []
+
+    if needs_web_search(user_message):
+
+        with st.spinner("🌐 Searching the web..."):
+
+            search_results = web_search(
+                user_message,
+                max_results=5
+            )
+
+
+    # =========================
+    # WEB CONTEXT
+    # =========================
+
+    web_context = ""
+
+    if search_results:
+
+        web_lines = []
+
+        for result in search_results:
+
+            title = result.get(
+                "title",
+                ""
+            )
+
+            body = result.get(
+                "body",
+                ""
+            )
+
+            href = result.get(
+                "href",
+                ""
+            )
+
+            web_lines.append(
+                f"Title: {title}\n"
+                f"Information: {body}\n"
+                f"Source: {href}"
+            )
+
+        web_context = (
+            "\n\nCurrent web search results:\n\n"
+            + "\n\n".join(web_lines)
+        )
+
+
+    # =========================
+    # SYSTEM PROMPT
+    # =========================
 
     system_prompt = """
 You are a helpful general-purpose AI assistant.
 
-You have access to relevant long-term memories about the current user.
+You have access to:
 
-Use those memories when they are relevant to the user's question.
+1. Relevant long-term memories about the current user.
+2. Current web search results when available.
 
-Do not mention the memory system unless it is useful to explain your answer.
+Use long-term memories only when they are relevant to the user.
 
-If a memory is irrelevant, ignore it.
+When web search results are provided, use them for current or recent information.
 
-Give clear and helpful answers.
+Do not invent current facts when reliable web information is available.
+
+If web search results are unavailable, clearly say that current information could not be verified.
+
+Give clear, useful and concise answers.
+
+When using web information, mention the source links at the end when appropriate.
 """
 
 
@@ -241,9 +368,14 @@ Give clear and helpful answers.
         system_prompt += memory_context
 
 
-    # -------------------------
-    # Prepare messages
-    # -------------------------
+    if web_context:
+
+        system_prompt += web_context
+
+
+    # =========================
+    # AI MESSAGES
+    # =========================
 
     messages = [
         {
@@ -252,21 +384,18 @@ Give clear and helpful answers.
         }
     ]
 
-
-    # Keep recent conversation history
-
     messages.extend(
         st.session_state.messages[-10:]
     )
 
 
-    # -------------------------
-    # Generate AI response
-    # -------------------------
+    # =========================
+    # AI RESPONSE
+    # =========================
 
     with st.chat_message("assistant"):
 
-        with st.spinner("Thinking..."):
+        with st.spinner("🤖 Thinking..."):
 
             try:
 
@@ -280,16 +409,43 @@ Give clear and helpful answers.
             except Exception as e:
 
                 answer = (
-                    "AI response generate karne me error aaya:\n\n"
-                    f"{e}"
+                    "AI response generate karne me "
+                    f"error aaya:\n\n{e}"
                 )
 
             st.markdown(answer)
 
 
-    # -------------------------
-    # Save assistant response
-    # -------------------------
+    # =========================
+    # SOURCES
+    # =========================
+
+    if search_results:
+
+        st.markdown("### 🌐 Web Sources")
+
+        for result in search_results:
+
+            title = result.get(
+                "title",
+                "Source"
+            )
+
+            href = result.get(
+                "href",
+                ""
+            )
+
+            if href:
+
+                st.markdown(
+                    f"- [{title}]({href})"
+                )
+
+
+    # =========================
+    # SAVE ASSISTANT MESSAGE
+    # =========================
 
     st.session_state.messages.append(
         {
@@ -299,9 +455,9 @@ Give clear and helpful answers.
     )
 
 
-    # -------------------------
-    # Save user message to memory
-    # -------------------------
+    # =========================
+    # SAVE USER MEMORY
+    # =========================
 
     try:
 
@@ -318,7 +474,7 @@ Give clear and helpful answers.
 
 
 # =========================
-# SIDEBAR INFORMATION
+# SIDEBAR
 # =========================
 
 st.sidebar.divider()
@@ -326,20 +482,19 @@ st.sidebar.divider()
 st.sidebar.subheader("🧠 Long-Term Memory")
 
 st.sidebar.write(
-    "Each User ID gets its own memory space."
+    "Each User ID has a separate memory space."
 )
+
+st.sidebar.subheader("🌐 Web Search")
 
 st.sidebar.write(
-    "Example:"
-)
-
-st.sidebar.code(
-    "wasid\nuser_001\nuser_002"
+    "Current information is searched "
+    "using a free web-search layer."
 )
 
 st.sidebar.divider()
 
 st.sidebar.caption(
     "Built with Python + Streamlit + Mem0 + "
-    "Qdrant + OpenRouter"
+    "Qdrant + OpenRouter + DDGS"
 )
