@@ -20,25 +20,35 @@ st.set_page_config(
 
 
 # =========================
-# LOAD ENVIRONMENT / SECRETS
+# LOAD API KEY
 # =========================
 
 load_dotenv()
 
-api_key = os.getenv("OPENROUTER_API_KEY")
+api_key = None
+
+# Streamlit Cloud Secrets
+try:
+    api_key = st.secrets.get("OPENROUTER_API_KEY")
+except Exception:
+    api_key = None
+
+# Local .env fallback
+if not api_key:
+    api_key = os.getenv("OPENROUTER_API_KEY")
 
 if not api_key:
-    try:
-        api_key = st.secrets["OPENROUTER_API_KEY"]
-    except Exception:
-        api_key = None
-
-if not api_key:
-    st.error(
-        "OPENROUTER_API_KEY nahi mila. "
-        "Streamlit Cloud Secrets check karo."
+    st.error("❌ OPENROUTER_API_KEY nahi mila.")
+    st.info(
+        "Streamlit Cloud → Settings → Secrets mein "
+        "OPENROUTER_API_KEY add karo."
     )
     st.stop()
+
+# Safe diagnostic
+st.sidebar.success(
+    f"🔑 API key loaded: {len(api_key)} characters"
+)
 
 
 # =========================
@@ -85,7 +95,7 @@ memory, client = load_services()
 
 
 # =========================
-# WEB SEARCH FUNCTION
+# WEB SEARCH
 # =========================
 
 def web_search(query, max_results=5):
@@ -169,7 +179,6 @@ user_id = re.sub(
 if not user_id:
     user_id = "wasid"
 
-
 st.sidebar.info(
     f"Current User ID:\n\n**{user_id}**"
 )
@@ -196,7 +205,6 @@ st.caption(
 # =========================
 
 if "messages" not in st.session_state:
-
     st.session_state.messages = []
 
 
@@ -225,7 +233,7 @@ user_message = st.chat_input(
 if user_message:
 
     # =========================
-    # DISPLAY USER MESSAGE
+    # USER MESSAGE
     # =========================
 
     st.session_state.messages.append(
@@ -236,7 +244,6 @@ if user_message:
     )
 
     with st.chat_message("user"):
-
         st.markdown(user_message)
 
 
@@ -382,12 +389,9 @@ When using web information, mention the source links at the end when appropriate
 
 
     if memory_context:
-
         system_prompt += memory_context
 
-
     if web_context:
-
         system_prompt += web_context
 
 
@@ -440,7 +444,7 @@ When using web information, mention the source links at the end when appropriate
 
 
     # =========================
-    # SOURCES
+    # WEB SOURCES
     # =========================
 
     if search_results:
@@ -499,7 +503,7 @@ When using web information, mention the source links at the end when appropriate
 
 
 # =========================
-# SIDEBAR INFORMATION
+# SIDEBAR
 # =========================
 
 st.sidebar.divider()
