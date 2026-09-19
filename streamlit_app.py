@@ -8,9 +8,9 @@ from openai import OpenAI
 from ddgs import DDGS
 
 
-# =========================
+# =========================================================
 # PAGE CONFIG
-# =========================
+# =========================================================
 
 st.set_page_config(
     page_title="Self Learning AI Agent",
@@ -19,9 +19,9 @@ st.set_page_config(
 )
 
 
-# =========================
+# =========================================================
 # LOAD API KEY
-# =========================
+# =========================================================
 
 load_dotenv()
 
@@ -40,10 +40,12 @@ if not api_key:
 if not api_key:
     st.error("❌ OPENROUTER_API_KEY nahi mila.")
     st.info(
-        "Streamlit Cloud → Settings → Secrets mein "
-        "OPENROUTER_API_KEY add karo."
+        "Streamlit Cloud → Manage App → Settings → Secrets "
+        "mein OPENROUTER_API_KEY add karo."
     )
     st.stop()
+
+api_key = str(api_key).strip()
 
 # Safe diagnostic
 st.sidebar.success(
@@ -51,76 +53,85 @@ st.sidebar.success(
 )
 
 
-# =========================
+# =========================================================
 # MEM0 CONFIGURATION
-# =========================
+# =========================================================
+#
+# IMPORTANT:
+# Memory embeddings are generated locally using
+# Hugging Face / Sentence Transformers.
+#
+# OpenRouter is used separately for the AI response.
+#
 
 memory_config = {
     "embedder": {
-        "provider": "openai",
+        "provider": "huggingface",
         "config": {
-            "api_key": api_key,
-            "openai_base_url": "https://openrouter.ai/api/v1",
-            "model": "text-embedding-3-small"
+            "model": "sentence-transformers/all-MiniLM-L6-v2",
+            "embedding_dims": 384
         }
     },
+
     "vector_store": {
         "provider": "qdrant",
         "config": {
             "collection_name": "wasid_memories",
-            "path": "qdrant_data"
+            "path": "qdrant_data",
+            "embedding_model_dims": 384
         }
     }
 }
 
 
-# =========================
+# =========================================================
 # LOAD SERVICES
-# =========================
+# =========================================================
 
 @st.cache_resource
-def load_services():
+def load_services(api_key_value):
 
+    # Mem0 memory
     memory = Memory.from_config(memory_config)
 
+    # OpenRouter AI client
     client = OpenAI(
-        api_key=api_key,
+        api_key=api_key_value,
         base_url="https://openrouter.ai/api/v1"
     )
 
     return memory, client
 
 
-memory, client = load_services()
+memory, client = load_services(api_key)
 
 
-# =========================
+# =========================================================
 # WEB SEARCH
-# =========================
+# =========================================================
 
 def web_search(query, max_results=5):
 
     try:
-
         results = DDGS().text(
             query,
             max_results=max_results
         )
 
-        return results
+        return list(results)
 
     except Exception as e:
 
         st.warning(
-            f"Web search failed: {e}"
+            f"🌐 Web search failed: {e}"
         )
 
         return []
 
 
-# =========================
+# =========================================================
 # SEARCH DECISION
-# =========================
+# =========================================================
 
 def needs_web_search(query):
 
@@ -140,14 +151,17 @@ def needs_web_search(query):
         "prices",
         "weather",
         "score",
+        "scores",
         "result",
         "results",
-        "new",
         "recently",
         "bigg boss",
         "election",
         "stock",
-        "market"
+        "stocks",
+        "market",
+        "new update",
+        "latest update"
     ]
 
     for keyword in current_keywords:
@@ -158,9 +172,9 @@ def needs_web_search(query):
     return False
 
 
-# =========================
+# =========================================================
 # USER ID
-# =========================
+# =========================================================
 
 st.sidebar.title("👤 User")
 
@@ -184,9 +198,9 @@ st.sidebar.info(
 )
 
 
-# =========================
+# =========================================================
 # MAIN UI
-# =========================
+# =========================================================
 
 st.title("🤖 Self Learning AI Agent")
 
@@ -200,17 +214,18 @@ st.caption(
 )
 
 
-# =========================
+# =========================================================
 # CHAT HISTORY
-# =========================
+# =========================================================
 
 if "messages" not in st.session_state:
+
     st.session_state.messages = []
 
 
-# =========================
-# DISPLAY CHAT
-# =========================
+# =========================================================
+# DISPLAY CHAT HISTORY
+# =========================================================
 
 for message in st.session_state.messages:
 
@@ -221,9 +236,9 @@ for message in st.session_state.messages:
         )
 
 
-# =========================
+# =========================================================
 # CHAT INPUT
-# =========================
+# =========================================================
 
 user_message = st.chat_input(
     "Ask anything..."
@@ -232,9 +247,9 @@ user_message = st.chat_input(
 
 if user_message:
 
-    # =========================
+    # =====================================================
     # USER MESSAGE
-    # =========================
+    # =====================================================
 
     st.session_state.messages.append(
         {
@@ -244,20 +259,22 @@ if user_message:
     )
 
     with st.chat_message("user"):
+
         st.markdown(user_message)
 
 
-    # =========================
+    # =====================================================
     # MEMORY SEARCH
-    # =========================
+    # =====================================================
+
+    memories = []
 
     try:
 
         memory_results = memory.search(
-            user_message,
-            filters={
-                "user_id": user_id
-            }
+            query=user_message,
+            user_id=user_id,
+            limit=5
         )
 
         memories = memory_results.get(
@@ -267,16 +284,14 @@ if user_message:
 
     except Exception as e:
 
-        memories = []
-
         st.warning(
             f"Memory search failed: {e}"
         )
 
 
-    # =========================
+    # =====================================================
     # MEMORY CONTEXT
-    # =========================
+    # =====================================================
 
     memory_context = ""
 
@@ -305,9 +320,9 @@ if user_message:
             )
 
 
-    # =========================
+    # =====================================================
     # WEB SEARCH
-    # =========================
+    # =====================================================
 
     search_results = []
 
@@ -323,9 +338,9 @@ if user_message:
             )
 
 
-    # =========================
+    # =====================================================
     # WEB CONTEXT
-    # =========================
+    # =====================================================
 
     web_context = ""
 
@@ -362,9 +377,9 @@ if user_message:
         )
 
 
-    # =========================
+    # =====================================================
     # SYSTEM PROMPT
-    # =========================
+    # =====================================================
 
     system_prompt = """
 You are a helpful general-purpose AI assistant.
@@ -374,30 +389,40 @@ You have access to:
 1. Relevant long-term memories about the current user.
 2. Current web search results when available.
 
-Use long-term memories only when they are relevant to the user.
+Use long-term memories only when they are relevant.
 
-When web search results are provided, use them for current or recent information.
+When current web search results are provided,
+use them for current or recent information.
 
-Do not invent current facts when reliable web information is available.
+Do not invent current facts when reliable web
+information is available.
 
-If web search results are unavailable, clearly say that current information could not be verified.
+If web search results are unavailable, clearly
+say that current information could not be verified.
 
-Give clear, useful and concise answers.
+Answer clearly, naturally and helpfully.
 
-When using web information, mention the source links at the end when appropriate.
+Do not mention internal implementation details
+unless the user asks.
+
+When web information is used, provide relevant
+source links when appropriate.
 """
 
 
     if memory_context:
+
         system_prompt += memory_context
 
+
     if web_context:
+
         system_prompt += web_context
 
 
-    # =========================
+    # =====================================================
     # AI MESSAGES
-    # =========================
+    # =====================================================
 
     messages = [
         {
@@ -411,9 +436,9 @@ When using web information, mention the source links at the end when appropriate
     )
 
 
-    # =========================
+    # =====================================================
     # AI RESPONSE
-    # =========================
+    # =====================================================
 
     with st.chat_message("assistant"):
 
@@ -424,14 +449,27 @@ When using web information, mention the source links at the end when appropriate
             try:
 
                 response = client.chat.completions.create(
+
                     model="openai/gpt-4o-mini",
-                    messages=messages
+
+                    messages=messages,
+
+                    temperature=0.7
+
                 )
 
                 answer = (
-                    response.choices[0]
-                    .message.content
+                    response
+                    .choices[0]
+                    .message
+                    .content
                 )
+
+                if not answer:
+
+                    answer = (
+                        "AI ne empty response diya."
+                    )
 
             except Exception as e:
 
@@ -443,9 +481,9 @@ When using web information, mention the source links at the end when appropriate
             st.markdown(answer)
 
 
-    # =========================
+    # =====================================================
     # WEB SOURCES
-    # =========================
+    # =====================================================
 
     if search_results:
 
@@ -472,9 +510,9 @@ When using web information, mention the source links at the end when appropriate
                 )
 
 
-    # =========================
+    # =====================================================
     # SAVE ASSISTANT MESSAGE
-    # =========================
+    # =====================================================
 
     st.session_state.messages.append(
         {
@@ -484,9 +522,9 @@ When using web information, mention the source links at the end when appropriate
     )
 
 
-    # =========================
+    # =====================================================
     # SAVE USER MEMORY
-    # =========================
+    # =====================================================
 
     try:
 
@@ -502,9 +540,9 @@ When using web information, mention the source links at the end when appropriate
         )
 
 
-# =========================
-# SIDEBAR
-# =========================
+# =========================================================
+# SIDEBAR INFORMATION
+# =========================================================
 
 st.sidebar.divider()
 
@@ -521,8 +559,8 @@ st.sidebar.subheader(
 )
 
 st.sidebar.write(
-    "Current information is searched "
-    "using a free web-search layer."
+    "Current information is searched using "
+    "a free web-search layer."
 )
 
 st.sidebar.divider()
