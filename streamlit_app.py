@@ -40,36 +40,38 @@ if not api_key:
 if not api_key:
     st.error("❌ OPENROUTER_API_KEY nahi mila.")
     st.info(
-        "Streamlit Cloud → Manage App → Settings → Secrets "
-        "mein OPENROUTER_API_KEY add karo."
+        "Streamlit Cloud → Settings → Secrets mein "
+        "OPENROUTER_API_KEY add karo."
     )
     st.stop()
 
 api_key = str(api_key).strip()
 
-# Safe diagnostic
-st.sidebar.success(
-    f"🔑 API key loaded: {len(api_key)} characters"
-)
+if not api_key:
+    st.error("❌ OPENROUTER_API_KEY empty hai.")
+    st.stop()
 
 
 # =========================================================
 # MEM0 CONFIGURATION
 # =========================================================
-#
-# IMPORTANT:
-# Memory embeddings are generated locally using
-# Hugging Face / Sentence Transformers.
-#
-# OpenRouter is used separately for the AI response.
-#
 
 memory_config = {
-    "embedder": {
-        "provider": "huggingface",
+    "llm": {
+        "provider": "openai",
         "config": {
-            "model": "sentence-transformers/all-MiniLM-L6-v2",
-            "embedding_dims": 384
+            "api_key": api_key,
+            "openai_base_url": "https://openrouter.ai/api/v1",
+            "model": "openai/gpt-4o-mini"
+        }
+    },
+
+    "embedder": {
+        "provider": "openai",
+        "config": {
+            "api_key": api_key,
+            "openai_base_url": "https://openrouter.ai/api/v1",
+            "model": "text-embedding-3-small"
         }
     },
 
@@ -77,8 +79,7 @@ memory_config = {
         "provider": "qdrant",
         "config": {
             "collection_name": "wasid_memories",
-            "path": "qdrant_data",
-            "embedding_model_dims": 384
+            "path": "qdrant_data"
         }
     }
 }
@@ -89,21 +90,29 @@ memory_config = {
 # =========================================================
 
 @st.cache_resource
-def load_services(api_key_value):
+def load_services():
 
-    # Mem0 memory
     memory = Memory.from_config(memory_config)
 
-    # OpenRouter AI client
     client = OpenAI(
-        api_key=api_key_value,
+        api_key=api_key,
         base_url="https://openrouter.ai/api/v1"
     )
 
     return memory, client
 
 
-memory, client = load_services(api_key)
+try:
+
+    memory, client = load_services()
+
+except Exception as e:
+
+    st.error("❌ Services load nahi ho paayi.")
+
+    st.code(str(e))
+
+    st.stop()
 
 
 # =========================================================
@@ -113,6 +122,7 @@ memory, client = load_services(api_key)
 def web_search(query, max_results=5):
 
     try:
+
         results = DDGS().text(
             query,
             max_results=max_results
@@ -123,7 +133,7 @@ def web_search(query, max_results=5):
     except Exception as e:
 
         st.warning(
-            f"🌐 Web search failed: {e}"
+            f"Web search failed: {e}"
         )
 
         return []
@@ -151,17 +161,14 @@ def needs_web_search(query):
         "prices",
         "weather",
         "score",
-        "scores",
         "result",
         "results",
+        "new",
         "recently",
         "bigg boss",
         "election",
         "stock",
-        "stocks",
-        "market",
-        "new update",
-        "latest update"
+        "market"
     ]
 
     for keyword in current_keywords:
@@ -191,7 +198,9 @@ user_id = re.sub(
 )
 
 if not user_id:
+
     user_id = "wasid"
+
 
 st.sidebar.info(
     f"Current User ID:\n\n**{user_id}**"
@@ -248,7 +257,7 @@ user_message = st.chat_input(
 if user_message:
 
     # =====================================================
-    # USER MESSAGE
+    # DISPLAY USER MESSAGE
     # =====================================================
 
     st.session_state.messages.append(
@@ -272,9 +281,10 @@ if user_message:
     try:
 
         memory_results = memory.search(
-            query=user_message,
-            user_id=user_id,
-            limit=5
+            user_message,
+            filters={
+                "user_id": user_id
+            }
         )
 
         memories = memory_results.get(
@@ -391,22 +401,22 @@ You have access to:
 
 Use long-term memories only when they are relevant.
 
-When current web search results are provided,
-use them for current or recent information.
+When web search results are provided, use them for current
+or recent information.
 
-Do not invent current facts when reliable web
-information is available.
+Do not invent current facts when reliable web information
+is available.
 
-If web search results are unavailable, clearly
-say that current information could not be verified.
+If web search results are unavailable, clearly say that
+current information could not be verified.
 
-Answer clearly, naturally and helpfully.
+Give clear, useful and concise answers.
 
-Do not mention internal implementation details
-unless the user asks.
+Do not expose private memory information unless it is
+relevant to the current user.
 
-When web information is used, provide relevant
-source links when appropriate.
+When using web information, mention useful source links
+when appropriate.
 """
 
 
@@ -440,6 +450,8 @@ source links when appropriate.
     # AI RESPONSE
     # =====================================================
 
+    answer = ""
+
     with st.chat_message("assistant"):
 
         with st.spinner(
@@ -449,33 +461,23 @@ source links when appropriate.
             try:
 
                 response = client.chat.completions.create(
-
                     model="openai/gpt-4o-mini",
-
                     messages=messages,
-
                     temperature=0.7
-
                 )
 
                 answer = (
-                    response
-                    .choices[0]
+                    response.choices[0]
                     .message
                     .content
                 )
 
-                if not answer:
-
-                    answer = (
-                        "AI ne empty response diya."
-                    )
-
             except Exception as e:
 
                 answer = (
-                    "AI response generate karne me "
-                    f"error aaya:\n\n{e}"
+                    "❌ AI response generate karne "
+                    "me error aaya:\n\n"
+                    f"{e}"
                 )
 
             st.markdown(answer)
