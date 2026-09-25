@@ -25,3 +25,8 @@ memory_config = {
 }
 
 memory = Memory.from_config(memory_config)
+
+memory_results = memory.search(
+    user_message,
+    filters={"user_id": user_id}
+)
