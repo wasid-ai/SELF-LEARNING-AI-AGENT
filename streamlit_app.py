@@ -76,13 +76,13 @@ memory_config = {
     },
 
     "vector_store": {
-    "provider": "qdrant",
-    "config": {
-        "collection_name": "wasid_memories",
-        "path": "qdrant_data"
+        "provider": "qdrant",
+        "config": {
+            "collection_name": "wasid_memories",
+            "path": "qdrant_data"
+        }
     }
 }
-
 
 
 # =========================================================
