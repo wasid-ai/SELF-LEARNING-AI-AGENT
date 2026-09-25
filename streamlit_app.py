@@ -55,10 +55,10 @@ api_key = str(api_key).strip()
 
 @st.cache_resource(show_spinner=False)
 def load_services():
-    # 1. Qdrant In-Memory Client Setup (Prevents File Locks)
+    # 1. Qdrant In-Memory Client Setup
     q_client = QdrantClient(location=":memory:")
 
-    # 2. Main OpenAI Client for OpenRouter (Includes explicit Bearer Auth)
+    # 2. OpenRouter OpenAI Client Setup
     client = OpenAI(
         api_key=api_key,
         base_url="https://openrouter.ai/api/v1",
@@ -69,14 +69,15 @@ def load_services():
         }
     )
 
-    # 3. Mem0 Configuration using OpenRouter Base URL & API Key
+    # 3. Mem0 Configuration (max_tokens set to avoid 402 errors)
     memory_config = {
         "llm": {
             "provider": "openai",
             "config": {
                 "api_key": api_key,
                 "openai_base_url": "https://openrouter.ai/api/v1",
-                "model": "openai/gpt-4o-mini"
+                "model": "openai/gpt-4o-mini",
+                "max_tokens": 500
             }
         },
         "embedder": {
@@ -272,10 +273,12 @@ Give clear, useful and concise answers.
     with st.chat_message("assistant"):
         with st.spinner("🤖 Thinking..."):
             try:
+                # Set explicit max_tokens to prevent 402 Credit limit issue
                 response = client.chat.completions.create(
                     model="openai/gpt-4o-mini",
                     messages=messages,
-                    temperature=0.7
+                    temperature=0.7,
+                    max_tokens=500
                 )
                 answer = response.choices[0].message.content
             except Exception as e:
