@@ -1,13 +1,13 @@
 import os
 import re
 import tempfile
-import uuid
 
 import streamlit as st
 from dotenv import load_dotenv
 from mem0 import Memory
 from openai import OpenAI
 from ddgs import DDGS
+from qdrant_client import QdrantClient
 
 
 # =========================================================
@@ -55,65 +55,44 @@ if not api_key:
 
 
 # =========================================================
-# DYNAMIC UNIQUE PATH (PREVENT CONCURRENT ACCESS ERROR)
-# =========================================================
-
-if "session_id" not in st.session_state:
-    st.session_state.session_id = str(uuid.uuid4())[:8]
-
-qdrant_temp_dir = os.path.join(
-    tempfile.gettempdir(), 
-    f"qdrant_db_{st.session_state.session_id}"
-)
-
-os.environ["MEM0_DIR"] = os.path.join(
-    tempfile.gettempdir(), 
-    f"mem0_dir_{st.session_state.session_id}"
-)
-
-
-# =========================================================
-# MEM0 CONFIGURATION
-# =========================================================
-
-memory_config = {
-    "llm": {
-        "provider": "openai",
-        "config": {
-            "api_key": api_key,
-            "openai_base_url": "https://openrouter.ai/api/v1",
-            "model": "openai/gpt-4o-mini"
-        }
-    },
-
-    "embedder": {
-        "provider": "openai",
-        "config": {
-            "api_key": api_key,
-            "openai_base_url": "https://openrouter.ai/api/v1",
-            "model": "text-embedding-3-small"
-        }
-    },
-
-    "vector_store": {
-        "provider": "qdrant",
-        "config": {
-            "collection_name": "wasid_memories",
-            "path": qdrant_temp_dir,
-            "on_disk": True
-        }
-    }
-}
-
-
-# =========================================================
 # LOAD SERVICES
 # =========================================================
 
 @st.cache_resource(show_spinner=False)
-def load_services(_config):
+def load_services():
+    # Direct Qdrant Client Instance (Bypasses Mem0 folder locking issue)
+    qdrant_path = os.path.join(tempfile.gettempdir(), "qdrant_db_mem0")
+    q_client = QdrantClient(path=qdrant_path)
 
-    memory = Memory.from_config(_config)
+    memory_config = {
+        "llm": {
+            "provider": "openai",
+            "config": {
+                "api_key": api_key,
+                "openai_base_url": "https://openrouter.ai/api/v1",
+                "model": "openai/gpt-4o-mini"
+            }
+        },
+
+        "embedder": {
+            "provider": "openai",
+            "config": {
+                "api_key": api_key,
+                "openai_base_url": "https://openrouter.ai/api/v1",
+                "model": "text-embedding-3-small"
+            }
+        },
+
+        "vector_store": {
+            "provider": "qdrant",
+            "config": {
+                "collection_name": "wasid_memories",
+                "client": q_client
+            }
+        }
+    }
+
+    memory = Memory.from_config(memory_config)
 
     client = OpenAI(
         api_key=api_key,
@@ -125,7 +104,7 @@ def load_services(_config):
 
 try:
 
-    memory, client = load_services(memory_config)
+    memory, client = load_services()
 
 except Exception as e:
 
