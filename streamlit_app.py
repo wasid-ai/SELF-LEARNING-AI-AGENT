@@ -1,5 +1,6 @@
 import os
 import re
+import tempfile
 
 import streamlit as st
 from dotenv import load_dotenv
@@ -56,6 +57,9 @@ if not api_key:
 # MEM0 CONFIGURATION
 # =========================================================
 
+# Use temp directory to prevent local file lock issues
+qdrant_temp_dir = os.path.join(tempfile.gettempdir(), "qdrant_wasid_db")
+
 memory_config = {
     "llm": {
         "provider": "openai",
@@ -79,7 +83,8 @@ memory_config = {
         "provider": "qdrant",
         "config": {
             "collection_name": "wasid_memories",
-            "location": ":memory:"
+            "path": qdrant_temp_dir,
+            "on_disk": True
         }
     }
 }
