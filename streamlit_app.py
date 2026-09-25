@@ -1,6 +1,7 @@
 import os
 import re
 import tempfile
+import uuid
 
 import streamlit as st
 from dotenv import load_dotenv
@@ -54,11 +55,26 @@ if not api_key:
 
 
 # =========================================================
-# MEM0 CONFIGURATION
+# DYNAMIC UNIQUE PATH (PREVENT CONCURRENT ACCESS ERROR)
 # =========================================================
 
-# Use temp directory to prevent local file lock issues
-qdrant_temp_dir = os.path.join(tempfile.gettempdir(), "qdrant_wasid_db")
+if "session_id" not in st.session_state:
+    st.session_state.session_id = str(uuid.uuid4())[:8]
+
+qdrant_temp_dir = os.path.join(
+    tempfile.gettempdir(), 
+    f"qdrant_db_{st.session_state.session_id}"
+)
+
+os.environ["MEM0_DIR"] = os.path.join(
+    tempfile.gettempdir(), 
+    f"mem0_dir_{st.session_state.session_id}"
+)
+
+
+# =========================================================
+# MEM0 CONFIGURATION
+# =========================================================
 
 memory_config = {
     "llm": {
@@ -95,9 +111,9 @@ memory_config = {
 # =========================================================
 
 @st.cache_resource(show_spinner=False)
-def load_services():
+def load_services(_config):
 
-    memory = Memory.from_config(memory_config)
+    memory = Memory.from_config(_config)
 
     client = OpenAI(
         api_key=api_key,
@@ -109,7 +125,7 @@ def load_services():
 
 try:
 
-    memory, client = load_services()
+    memory, client = load_services(memory_config)
 
 except Exception as e:
 
