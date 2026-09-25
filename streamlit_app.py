@@ -79,7 +79,7 @@ memory_config = {
         "provider": "qdrant",
         "config": {
             "collection_name": "wasid_memories",
-            "path": "qdrant_data"
+            "location": ":memory:"
         }
     }
 }
@@ -89,7 +89,7 @@ memory_config = {
 # LOAD SERVICES
 # =========================================================
 
-@st.cache_resource
+@st.cache_resource(show_spinner=False)
 def load_services():
 
     memory = Memory.from_config(memory_config)
