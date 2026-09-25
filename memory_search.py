@@ -1,3 +1,9 @@
+from qdrant_client import QdrantClient
+from mem0 import Memory
+
+# Qdrant client in-memory mode mein initialize karein
+qdrant_client = QdrantClient(location=":memory:")
+
 memory_config = {
     "llm": {
         "provider": "openai",
@@ -19,13 +25,14 @@ memory_config = {
         "provider": "qdrant",
         "config": {
             "collection_name": "wasid_memories",
-            "path": "qdrant_data"
+            "client": qdrant_client
         }
     }
 }
 
 memory = Memory.from_config(memory_config)
 
+# Search operation
 memory_results = memory.search(
     user_message,
     filters={"user_id": user_id}
